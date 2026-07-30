@@ -11,3 +11,5 @@ catboost
 joblib
 shap
 umap-learn
+dash
+dash-bootstrap-components
