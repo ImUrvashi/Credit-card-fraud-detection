@@ -63,42 +63,45 @@ dashboard/
   callbacks.py       # wires the cards to live interaction
 ```
 
-## Setup
+## Setup & running it
 
-Requires the dataset from Kaggle — see `data/raw/README.md` for the exact steps
-(not redistributed here since Kaggle doesn't allow it).
+First, get the dataset from Kaggle — see `data/raw/README.md` for the exact
+steps (not redistributed here since Kaggle doesn't allow it). Then:
+
+```bash
+./run.sh
+```
+
+That's the whole thing. It creates the virtualenv, installs dependencies,
+installs `libomp` via Homebrew if you're on macOS and don't have it, then runs
+whichever pipeline steps haven't been run yet (data prep → training → SHAP →
+embeddings), and finally starts the dashboard at **http://localhost:8050**.
+
+It's safe to re-run any time: every step is skipped if its output already
+exists, so after the first run (which trains all 58 model/strategy combinations
+and can take several minutes) it just launches the dashboard in seconds. To
+force a step to redo, delete its output first — e.g. `rm -rf results/ models/`
+to retrain everything from scratch.
+
+<details>
+<summary>Prefer to run each step yourself? (what <code>run.sh</code> does, unrolled)</summary>
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
 
-On macOS, XGBoost/LightGBM need the OpenMP runtime:
-
-```bash
+# macOS only, if you don't already have it — needed by XGBoost/LightGBM:
 brew install libomp
-```
 
-## Running it
-
-Once `data/raw/creditcard.csv` is in place, run these in order (each writes
-artifacts the next step / the dashboard reads):
-
-```bash
 python3 -m src.data          # -> data/processed/{train,val,test}.csv
 python3 -m src.train         # -> results/model_comparison.csv, models/*.joblib
 python3 -m src.explain       # -> results/shap_cache/*.joblib
 python3 -m src.embeddings    # -> results/embedding_cache/*.joblib
+python3 -m dashboard.app     # -> http://localhost:8050
 ```
 
-Then launch the dashboard:
-
-```bash
-python3 -m dashboard.app
-```
-
-Open **http://localhost:8050**.
+</details>
 
 ## Dashboard guide
 
