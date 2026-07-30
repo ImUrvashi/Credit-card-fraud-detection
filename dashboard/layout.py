@@ -3,7 +3,6 @@ visual structure with sensible defaults loaded from disk — interactive
 callbacks get wired on top of these same components next."""
 
 import dash_bootstrap_components as dbc
-import numpy as np
 from dash import dash_table, dcc, html
 
 from dashboard import data_loaders as dl
@@ -157,10 +156,7 @@ def feature_importance_card(results_df, default_shap_cache):
 
 
 def shap_detail_card(default_shap_cache, val_df):
-    class_labels = val_df.loc[default_shap_cache["row_index"], "Class"].to_numpy()
-    fraud_positions = np.where(class_labels == 1)[0]
-    default_row = int(fraud_positions[0]) if len(fraud_positions) else 0
-
+    default_row = dl.default_fraud_row_position(default_shap_cache, val_df)
     graph = dcc.Graph(id="shap-graph", figure=fig.shap_waterfall_figure(default_shap_cache, default_row))
     return card("Transaction detail — SHAP contributions", graph)
 
@@ -183,9 +179,12 @@ def threshold_card(results_df, val_df):
 def live_sim_card():
     body = [
         dbc.Button("▶ Play", id="live-sim-play", color="primary", class_name="mb-3"),
+        dcc.Interval(id="live-sim-interval", interval=1200, n_intervals=0, disabled=True),
+        dcc.Store(id="live-sim-feed-store", data=[]),
+        dcc.Store(id="live-sim-index", data=0),
         html.Div(id="live-sim-feed", children="Live simulation not started yet."),
     ]
-    return card("Simulated live transaction stream", body)
+    return card("Simulated live transaction stream (held-out test data, replayed in time order)", body)
 
 
 def build_layout():

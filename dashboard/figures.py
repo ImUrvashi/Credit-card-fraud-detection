@@ -1,12 +1,13 @@
 """Plotly figure builders shared between the static layout and the
 callbacks that will make them interactive.
 
-Color is assigned by job, not by eye: Legit/Fraud is a good/bad status
-(reserved green/red), the two-run comparison is nominal identity
-(categorical blue/orange), and single-series magnitude charts
-(feature importance, fraud-by-hour, confusion matrix) use one
-sequential blue hue. Palette values are the validated defaults from
-the project's dataviz skill.
+Color is assigned by job, not by eye: Legit/Fraud reads as good/bad,
+but the status green/red pair fails CVD separation hard (see
+CLASS_COLOR_MAP below), so it uses the palette's blue/red diverging
+pair instead. The two-run comparison is nominal identity (categorical
+blue/orange), and single-series magnitude charts (feature importance,
+fraud-by-hour, confusion matrix) use one sequential blue hue. Palette
+values are the validated defaults from the project's dataviz skill.
 """
 
 import numpy as np
@@ -87,22 +88,36 @@ def fraud_by_hour_figure(df):
 
 
 def embedding_scatter_figure(cache, method):
-    df = pd.DataFrame(
-        {
-            "x": cache["coords"][:, 0],
-            "y": cache["coords"][:, 1],
-            "class": np.where(cache["y"] == 1, "Fraud", "Legit"),
-        }
+    """A single real trace (not px.scatter's per-category split) so a
+    click's pointIndex maps directly to a position in cache['coords']/
+    cache['row_index'] — no reverse-engineering which category-filtered
+    subset a click landed in. Two invisible dummy traces supply the
+    Fraud/Legit legend swatches."""
+    point_colors = np.where(cache["y"] == 1, CLASS_COLOR_MAP["Fraud"], CLASS_COLOR_MAP["Legit"])
+    labels = np.where(cache["y"] == 1, "Fraud", "Legit")
+
+    fig = go.Figure(
+        go.Scatter(
+            x=cache["coords"][:, 0],
+            y=cache["coords"][:, 1],
+            mode="markers",
+            marker=dict(color=point_colors, opacity=0.6, size=7),
+            text=labels,
+            hovertemplate="%{text}<extra></extra>",
+            showlegend=False,
+        )
     )
-    fig = px.scatter(
-        df,
-        x="x",
-        y="y",
-        color="class",
-        color_discrete_map=CLASS_COLOR_MAP,
-        opacity=0.6,
-        title=f"{method.upper()} projection of transactions",
-    )
+    for class_name in ["Legit", "Fraud"]:
+        fig.add_trace(
+            go.Scatter(
+                x=[None],
+                y=[None],
+                mode="markers",
+                marker=dict(color=CLASS_COLOR_MAP[class_name], size=9),
+                name=class_name,
+            )
+        )
+    fig.update_layout(title=f"{method.upper()} projection of transactions", xaxis_title="x", yaxis_title="y")
     return fig
 
 
@@ -113,8 +128,18 @@ def feature_importance_figure(shap_cache, chart_type="bar"):
     ).sort_values("importance", ascending=True)
 
     if chart_type == "treemap":
-        fig = px.treemap(imp_df, path=["feature"], values="importance", title="Feature importance")
-        fig.update_traces(marker_colorscale=[[0, PALETTE["surface"]], [1, PALETTE["blue"]]])
+        # color must be passed here, not via update_traces after the
+        # fact — without it px.treemap has no numeric values bound to
+        # a colorscale, so box color would default to an arbitrary
+        # qualitative palette instead of encoding importance.
+        fig = px.treemap(
+            imp_df,
+            path=["feature"],
+            values="importance",
+            color="importance",
+            color_continuous_scale=[[0, PALETTE["surface"]], [1, PALETTE["blue"]]],
+            title="Feature importance",
+        )
         return fig
 
     fig = px.bar(
