@@ -39,6 +39,10 @@ def load_train_df() -> pd.DataFrame:
     return pd.read_csv(PROCESSED_DIR / "train.csv")
 
 
+def load_test_df() -> pd.DataFrame:
+    return pd.read_csv(PROCESSED_DIR / "test.csv")
+
+
 def best_run_name(results_df: pd.DataFrame, model_name: str = None) -> str:
     """The best (by PR-AUC) run overall, or for one specific algorithm."""
     df = results_df if model_name is None else results_df[results_df["model"] == model_name]

@@ -14,16 +14,70 @@ LEADERBOARD_COLUMNS = ["model", "strategy", "precision", "recall", "f1", "roc_au
 
 
 def navbar():
-    return dbc.Navbar(
-        dbc.Container(dbc.NavbarBrand("💳 Credit Card Fraud Detection", class_name="fw-bold fs-4")),
-        color="dark",
-        dark=True,
-        class_name="mb-4",
+    brand = html.Div(
+        [
+            html.Div("💳 Credit Card Fraud Detection", className="fw-bold fs-4 text-white"),
+            html.Div(
+                "9 algorithms × 7 imbalance strategies, compared and explained",
+                className="navbar-subtitle",
+            ),
+        ]
     )
+    return dbc.Navbar(dbc.Container(brand), color="dark", dark=True, class_name="mb-4 py-3")
 
 
 def card(title, body):
     return dbc.Card([dbc.CardHeader(title), dbc.CardBody(body)], class_name="mb-4 shadow-sm")
+
+
+def stat_tile(label, value):
+    return dbc.Col(
+        html.Div(
+            [html.Div(value, className="stat-tile-value"), html.Div(label, className="stat-tile-label")],
+            className="stat-tile",
+        ),
+        md=3,
+        xs=6,
+    )
+
+
+def dataset_overview_card(train_df, val_df, test_df):
+    total = len(train_df) + len(val_df) + len(test_df)
+    fraud_total = int(train_df["Class"].sum() + val_df["Class"].sum() + test_df["Class"].sum())
+    fraud_rate = fraud_total / total * 100
+
+    stats = dbc.Row(
+        [
+            stat_tile("Transactions", f"{total:,}"),
+            stat_tile("Fraud cases", f"{fraud_total:,}"),
+            stat_tile("Fraud rate", f"{fraud_rate:.3f}%"),
+            stat_tile("Features", "30"),
+        ],
+        class_name="mb-4 g-3",
+    )
+
+    description = html.P(
+        [
+            "Transactions made by European cardholders in September 2013, over two days "
+            "(source: ",
+            html.A(
+                "Kaggle — mlg-ulb/creditcardfraud",
+                href="https://www.kaggle.com/mlg-ulb/creditcardfraud",
+                target="_blank",
+            ),
+            "). To protect cardholder identity, 28 of the 30 features (V1–V28) are "
+            "anonymized components from a PCA transform — only Time (seconds since the "
+            "first transaction) and Amount are original. Fraud makes up just "
+            f"{fraud_rate:.3f}% of transactions, so this project compares 9 classification "
+            "algorithms against 7 imbalance-handling strategies (class weighting, "
+            "over/undersampling, SMOTE, ADASYN, SMOTETomek) and ranks them primarily by "
+            "PR-AUC (average precision), since accuracy — and even ROC-AUC — are both "
+            "misleading at this level of class imbalance.",
+        ],
+        className="mb-0 text-secondary",
+    )
+
+    return card("Dataset overview", [stats, description])
 
 
 def leaderboard_card(results_df):
@@ -138,6 +192,7 @@ def build_layout():
     results_df = dl.load_results()
     train_df = dl.load_train_df()
     val_df = dl.load_val_df()
+    test_df = dl.load_test_df()
     pca_cache = dl.load_embedding_cache("pca")
     default_shap_cache = dl.load_shap_cache("catboost")
 
@@ -146,6 +201,7 @@ def build_layout():
             navbar(),
             dbc.Container(
                 [
+                    dataset_overview_card(train_df, val_df, test_df),
                     leaderboard_card(results_df),
                     comparison_card(results_df),
                     timeline_card(train_df),
