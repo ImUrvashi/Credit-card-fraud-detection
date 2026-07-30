@@ -10,3 +10,5 @@ __pycache__/
 venv/
 catboost_info/
 docs/
+PLAN.md
+UNDERSTANDING.md

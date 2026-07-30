@@ -218,12 +218,12 @@ def build_layout():
             dbc.Container(
                 [
                     dataset_overview_card(train_df, val_df, test_df),
+                    timeline_card(train_df),
                     leaderboard_card(results_df),
                     comparison_card(results_df),
-                    timeline_card(train_df),
-                    embedding_card(pca_cache),
                     feature_importance_card(results_df, default_shap_cache),
                     shap_detail_card(default_shap_cache, val_df),
+                    embedding_card(pca_cache),
                     threshold_card(results_df, val_df),
                     live_sim_card(),
                 ]
