@@ -9,3 +9,5 @@ xgboost
 lightgbm
 catboost
 joblib
+shap
+umap-learn

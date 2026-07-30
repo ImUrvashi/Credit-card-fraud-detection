@@ -53,6 +53,15 @@ def split_data(df: pd.DataFrame, test_size=0.2, val_size=0.1, random_state=42):
     return train_df, val_df, test_df
 
 
+def build_explain_sample(df: pd.DataFrame, n_legit=2000, random_state=42) -> pd.DataFrame:
+    """All fraud rows plus a random sample of legit rows — small enough
+    for SHAP/t-SNE/UMAP to run on quickly, with enough fraud cases in
+    the mix to be useful for the dashboard to explore."""
+    fraud_df = df[df["Class"] == 1]
+    legit_df = df[df["Class"] == 0].sample(n=n_legit, random_state=random_state)
+    return pd.concat([fraud_df, legit_df]).sort_index()
+
+
 def prepare_data(raw_path: Path = RAW_PATH, processed_dir: Path = PROCESSED_DIR):
     df = load_raw_data(raw_path)
     df = add_time_features(df)
