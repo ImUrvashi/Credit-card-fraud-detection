@@ -15,7 +15,13 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import (
+    average_precision_score,
+    confusion_matrix,
+    precision_recall_curve,
+    roc_auc_score,
+    roc_curve,
+)
 
 METRICS = ["precision", "recall", "f1", "roc_auc", "pr_auc"]
 
@@ -171,6 +177,81 @@ def shap_waterfall_figure(shap_cache, row_idx=0, top_n=15):
     fig.update_layout(
         title=f"SHAP contributions toward fraud (base value = {shap_cache['base_value']:.3f})",
         yaxis=dict(autorange="reversed"),
+    )
+    return fig
+
+
+def threshold_curve_figure(y_true, y_scores, threshold, curve_type="pr"):
+    """The ROC or PR curve across every possible threshold, with a marker
+    showing where the current slider position actually sits on it —
+    the scalar metrics only show one point; this shows the whole
+    tradeoff. PR is the default since it's this project's primary
+    metric (see UNDERSTANDING.md §6/§9).
+
+    The marker's position is computed directly from `y_scores >=
+    threshold` — the same comparison the confusion matrix panel next
+    to it uses — rather than searching the curve's own threshold grid
+    for the "nearest" value. Model scores are often sparse/discretized
+    (e.g. tree-based leaf probabilities), so the nearest *actually
+    observed* threshold to an arbitrary slider value like 0.51 can sit
+    far away (e.g. 0.31), which looked like the marker jumping
+    non-monotonically as the slider moved. Recomputing directly from
+    the query threshold keeps the marker exactly consistent with the
+    adjacent confusion matrix and metrics text."""
+    y_pred = (y_scores >= threshold).astype(int)
+    tp = int(np.sum((y_pred == 1) & (y_true == 1)))
+    fp = int(np.sum((y_pred == 1) & (y_true == 0)))
+    fn = int(np.sum((y_pred == 0) & (y_true == 1)))
+    tn = int(np.sum((y_pred == 0) & (y_true == 0)))
+    recall_point = tp / (tp + fn) if (tp + fn) else 0.0
+    precision_point = tp / (tp + fp) if (tp + fp) else 1.0
+    fpr_point = fp / (fp + tn) if (fp + tn) else 0.0
+
+    if curve_type == "roc":
+        fpr, tpr, _ = roc_curve(y_true, y_scores)
+        auc_val = roc_auc_score(y_true, y_scores)
+
+        fig = go.Figure()
+        fig.add_scatter(x=fpr, y=tpr, mode="lines", line=dict(color=PALETTE["blue"]), name="ROC curve")
+        fig.add_scatter(
+            x=[0, 1], y=[0, 1], mode="lines", line=dict(color=PALETTE["muted"], dash="dot"), name="No-skill"
+        )
+        fig.add_scatter(
+            x=[fpr_point],
+            y=[recall_point],
+            mode="markers",
+            marker=dict(color=PALETTE["red"], size=12, line=dict(color=PALETTE["surface"], width=2)),
+            name=f"threshold = {threshold:.2f}",
+        )
+        fig.update_layout(
+            title=f"ROC curve (AUC = {auc_val:.3f})",
+            xaxis_title="False positive rate",
+            yaxis_title="True positive rate",
+            xaxis_range=[0, 1],
+            yaxis_range=[0, 1],
+        )
+        return fig
+
+    precision, recall, _ = precision_recall_curve(y_true, y_scores)
+    auc_val = average_precision_score(y_true, y_scores)
+    no_skill = float(np.mean(y_true))
+
+    fig = go.Figure()
+    fig.add_scatter(x=recall, y=precision, mode="lines", line=dict(color=PALETTE["blue"]), name="PR curve")
+    fig.add_hline(y=no_skill, line_dash="dot", line_color=PALETTE["muted"], annotation_text="no-skill baseline")
+    fig.add_scatter(
+        x=[recall_point],
+        y=[precision_point],
+        mode="markers",
+        marker=dict(color=PALETTE["red"], size=12, line=dict(color=PALETTE["surface"], width=2)),
+        name=f"threshold = {threshold:.2f}",
+    )
+    fig.update_layout(
+        title=f"Precision-Recall curve (PR-AUC = {auc_val:.3f})",
+        xaxis_title="Recall",
+        yaxis_title="Precision",
+        xaxis_range=[0, 1],
+        yaxis_range=[0, 1.02],
     )
     return fig
 

@@ -109,6 +109,15 @@ def update_threshold(threshold):
 
 
 @callback(
+    Output("threshold-curve-graph", "figure"),
+    Input("threshold-slider", "value"),
+    Input("threshold-curve-type", "value"),
+)
+def update_threshold_curve(threshold, curve_type):
+    return fig.threshold_curve_figure(_y_val, _val_scores, threshold, curve_type)
+
+
+@callback(
     Output("live-sim-interval", "disabled"),
     Output("live-sim-play", "children"),
     Input("live-sim-play", "n_clicks"),

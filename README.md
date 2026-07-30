@@ -104,8 +104,9 @@ python3 -m dashboard.app     # -> http://localhost:8050
   SHAP explanation below.
 - **Feature importance** — mean |SHAP value| per feature, bar or treemap.
 - **Transaction detail** — SHAP waterfall for the selected transaction.
-- **Decision threshold tuner** — live precision/recall/F1 + confusion matrix for
-  the best overall model as you drag the cutoff.
+- **Decision threshold tuner** — live precision/recall/F1, confusion matrix, and
+  a toggleable ROC/PR curve with a marker at the current cutoff, for the best
+  overall model as you drag the slider.
 - **Live transaction stream** — replays held-out test transactions with real-time
   inference and fraud flagging (oversamples fraud vs. its real ~0.17% rate so the
   demo doesn't run long between hits).

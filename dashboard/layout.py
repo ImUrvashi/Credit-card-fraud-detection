@@ -171,7 +171,24 @@ def threshold_card(results_df, val_df):
     body = [
         dcc.Slider(id="threshold-slider", min=0, max=1, step=0.01, value=0.5, marks={0: "0", 0.5: "0.5", 1: "1"}),
         html.Div(id="threshold-metrics", className="my-3"),
-        dcc.Graph(id="threshold-cm-graph", figure=fig.confusion_matrix_figure(y_val, y_pred)),
+        dcc.RadioItems(
+            id="threshold-curve-type",
+            options=[{"label": "PR curve", "value": "pr"}, {"label": "ROC curve", "value": "roc"}],
+            value="pr",
+            inline=True,
+            inputClassName="me-1",
+            labelClassName="me-3",
+            className="mb-3",
+        ),
+        dbc.Row(
+            [
+                dbc.Col(
+                    dcc.Graph(id="threshold-curve-graph", figure=fig.threshold_curve_figure(y_val, y_scores, 0.5, "pr")),
+                    width=6,
+                ),
+                dbc.Col(dcc.Graph(id="threshold-cm-graph", figure=fig.confusion_matrix_figure(y_val, y_pred)), width=6),
+            ]
+        ),
     ]
     return card(f"Decision threshold tuner ({best_run})", body)
 
