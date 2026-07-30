@@ -1,20 +1,19 @@
 # Credit Card Fraud Detection
 
-A from-scratch rebuild of a credit card fraud detection project: **9 classification
-algorithms × 7 imbalance-handling strategies** (58 systematically compared runs),
+9 classification algorithms × 7 imbalance-handling strategies (58 compared runs),
 SHAP explainability, PCA/t-SNE/UMAP embeddings, and an interactive Dash dashboard
 styled after [dash.gallery/dash-nlp](https://dash.gallery/dash-nlp/).
 
-For the reasoning behind every decision here — what the EDA found, why PR-AUC and
-not accuracy, what each resampling technique actually does and how it performed —
-see **[UNDERSTANDING.md](UNDERSTANDING.md)**. For the build plan and status, see
-[PLAN.md](PLAN.md).
+- **[UNDERSTANDING.md](UNDERSTANDING.md)** — the reasoning: EDA findings, what
+  each resampling technique does and how it performed, why PR-AUC, algorithm
+  notes, limitations.
+- **[PLAN.md](PLAN.md)** — build plan and status.
 
-## Results at a glance
+## Results
 
-Best strategy per algorithm, ranked by PR-AUC (average precision — the right
-metric when the positive class is 0.173% of the data; see
-[UNDERSTANDING.md](UNDERSTANDING.md#1-the-problem-stated-precisely)):
+Best strategy per algorithm, ranked by PR-AUC (average precision — see
+[UNDERSTANDING.md §1](UNDERSTANDING.md#1-the-problem-stated-precisely) for why
+accuracy/ROC-AUC are the wrong call at 0.173% fraud):
 
 | Model | Best strategy | Precision | Recall | F1 | ROC-AUC | PR-AUC |
 |---|---|---|---|---|---|---|
@@ -28,15 +27,8 @@ metric when the positive class is 0.173% of the data; see
 | Decision Tree | baseline | 0.735 | 0.735 | 0.735 | 0.867 | 0.540 |
 | Naive Bayes | adasyn | 0.034 | 0.816 | 0.064 | 0.947 | 0.083 |
 
-Full 58-run comparison lives in `results/model_comparison.csv` and is browsable/sortable
-in the dashboard's leaderboard.
-
-## Screenshots
-
-![Dataset overview and leaderboard](docs/screenshots/01_overview_leaderboard.png)
-![PCA/t-SNE/UMAP embedding scatter](docs/screenshots/02_embedding.png)
-![Feature importance and SHAP transaction detail](docs/screenshots/03_feature_importance_shap.png)
-![Threshold tuner and live simulation](docs/screenshots/04_threshold_livesim.png)
+Full 58-run comparison: `results/model_comparison.csv` (also sortable in the
+dashboard's leaderboard).
 
 ## Project structure
 
@@ -57,42 +49,41 @@ results/            # model_comparison.csv, shap_cache/, embedding_cache/ (gener
 models/             # trained model pipelines (generated)
 dashboard/
   app.py            # entry point
-  layout.py          # static card layout
-  figures.py         # Plotly figure builders + color palette
-  data_loaders.py    # shared IO helpers
-  callbacks.py       # wires the cards to live interaction
+  layout.py         # static card layout
+  figures.py        # Plotly figure builders + color palette
+  data_loaders.py   # shared IO helpers
+  callbacks.py      # wires the cards to live interaction
 ```
 
 ## Setup & running it
 
-First, get the dataset from Kaggle — see `data/raw/README.md` for the exact
-steps (not redistributed here since Kaggle doesn't allow it). Then:
+Get the dataset from Kaggle first — see `data/raw/README.md` (not redistributed
+here since Kaggle doesn't allow it). Then:
 
 ```bash
 ./run.sh
 ```
 
-That's the whole thing. It creates the virtualenv, installs dependencies,
-installs `libomp` via Homebrew if you're on macOS and don't have it, then runs
-whichever pipeline steps haven't been run yet (data prep → training → SHAP →
-embeddings), and finally starts the dashboard at **http://localhost:8050**.
+Creates the venv, installs dependencies (+ `libomp` via Homebrew on macOS if
+missing), runs whichever pipeline steps haven't produced output yet (data prep →
+training → SHAP → embeddings), and starts the dashboard at
+**http://localhost:8050**.
 
-It's safe to re-run any time: every step is skipped if its output already
-exists, so after the first run (which trains all 58 model/strategy combinations
-and can take several minutes) it just launches the dashboard in seconds. To
-force a step to redo, delete its output first — e.g. `rm -rf results/ models/`
-to retrain everything from scratch.
+Idempotent — safe to re-run any time. First run does everything (training all 58
+combinations takes several minutes); every run after that just launches the
+dashboard, since each step is skipped once its output exists. Force a redo by
+deleting that output first, e.g. `rm -rf results/ models/` to retrain from
+scratch.
 
 <details>
-<summary>Prefer to run each step yourself? (what <code>run.sh</code> does, unrolled)</summary>
+<summary>Manual steps (what <code>run.sh</code> does, unrolled)</summary>
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# macOS only, if you don't already have it — needed by XGBoost/LightGBM:
-brew install libomp
+brew install libomp   # macOS only, if missing — needed by XGBoost/LightGBM
 
 python3 -m src.data          # -> data/processed/{train,val,test}.csv
 python3 -m src.train         # -> results/model_comparison.csv, models/*.joblib
@@ -103,20 +94,18 @@ python3 -m dashboard.app     # -> http://localhost:8050
 
 </details>
 
-## Dashboard guide
+## Dashboard cards
 
-- **Dataset overview** — what the data is and why PR-AUC is the primary metric.
-- **Leaderboard** — all 58 algorithm×strategy runs, sortable.
-- **Compare two runs** — pick any two runs for a side-by-side metric comparison.
+- **Dataset overview** — what the data is, why PR-AUC.
+- **Leaderboard** — all 58 runs, sortable.
+- **Compare two runs** — side-by-side metric comparison.
 - **Fraud volume over time** — fraud count by hour of day.
-- **2D transaction embedding** — toggle PCA/t-SNE/UMAP; **click a point** to load
-  that exact transaction's SHAP explanation below.
-- **Feature importance** — mean |SHAP value| per feature, bar or treemap, per
-  selected algorithm.
+- **2D transaction embedding** — PCA/t-SNE/UMAP toggle; click a point to load its
+  SHAP explanation below.
+- **Feature importance** — mean |SHAP value| per feature, bar or treemap.
 - **Transaction detail** — SHAP waterfall for the selected transaction.
-- **Decision threshold tuner** — drag the slider to see precision/recall/F1 and
-  the confusion matrix update live for the best overall model.
-- **Live transaction stream** — press Play to replay held-out test transactions
-  in time order with real-time model inference and fraud flagging (deliberately
-  oversamples fraud vs. its real ~0.17% rate — otherwise the demo would run a
-  long time between hits).
+- **Decision threshold tuner** — live precision/recall/F1 + confusion matrix for
+  the best overall model as you drag the cutoff.
+- **Live transaction stream** — replays held-out test transactions with real-time
+  inference and fraud flagging (oversamples fraud vs. its real ~0.17% rate so the
+  demo doesn't run long between hits).
