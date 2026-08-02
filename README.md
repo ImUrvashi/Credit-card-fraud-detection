@@ -66,6 +66,19 @@ whenever it's there, and only falls back to `deploy_artifacts/` when it's the
 only thing present (i.e. an actual deploy). Re-run `./deploy.sh` after
 retraining to refresh it before pushing.
 
+**`deploy.sh` is a local prep step — never set it as Render's build or start
+command.** It expects the full local `results/` to exist, which a Render
+checkout never has (only whatever you've committed, i.e. `deploy_artifacts/`).
+Render's service settings should be:
+
+- **Build Command:** `pip install -r requirements.txt`
+- **Start Command:** `gunicorn dashboard.app:server` (or `python -m dashboard.app`,
+  which now also binds `$PORT`/`0.0.0.0` correctly — but gunicorn is the more
+  production-appropriate WSGI server)
+
+Make sure `deploy_artifacts/` is actually committed and pushed before deploying
+— `git status` should show it tracked, not just present locally.
+
 ## Project structure
 
 ```

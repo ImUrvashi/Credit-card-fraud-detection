@@ -13,3 +13,4 @@ shap
 umap-learn
 dash
 dash-bootstrap-components
+gunicorn
