@@ -42,6 +42,23 @@ python3 -m dashboard.app     # -> http://localhost:8050
 
 </details>
 
+## Deploying (Render, etc.)
+
+The dashboard only reads a handful of small files at runtime — one model, one
+processed split (`val.csv`), and the SHAP/embedding caches — not the full
+`data/`/`models/` folders (~780MB) or the raw Kaggle CSV. Package just what's
+needed:
+
+```bash
+python3 -m src.prepare_deploy_artifacts   # -> results/dataset_summary.json, live_sim_sequence.csv
+python3 scripts/package_deploy_bundle.py  # -> deploy_bundle.zip (~14MB)
+```
+
+Upload `deploy_bundle.zip` wherever your host can fetch it (a GitHub Release
+asset, Hugging Face, S3...), and have the build step unzip it into the project
+root before starting `python -m dashboard.app` — the paths inside already match
+where the app expects them.
+
 ## Project structure
 
 ```
@@ -49,12 +66,15 @@ data/raw/           # download creditcard.csv here (see data/raw/README.md)
 data/processed/     # generated: train/val/test splits
 notebooks/          # EDA
 src/
-  data.py           # load, feature-engineer, split
-  resampling.py     # the 7 imbalance-handling strategies
-  models.py         # the 9-algorithm registry
-  train.py          # runs the 9x7 grid -> results/, models/
-  explain.py        # SHAP per algorithm's best run
-  embeddings.py     # PCA/t-SNE/UMAP projections
+  data.py                     # load, feature-engineer, split
+  resampling.py               # the 7 imbalance-handling strategies
+  models.py                   # the 9-algorithm registry
+  train.py                    # runs the 9x7 grid -> results/, models/
+  explain.py                  # SHAP per algorithm's best run
+  embeddings.py               # PCA/t-SNE/UMAP projections
+  prepare_deploy_artifacts.py  # small summaries for deployment
+scripts/
+  package_deploy_bundle.py    # zips the deploy-only artifacts
 results/, models/   # generated artifacts
 dashboard/
   app.py            # entry point
