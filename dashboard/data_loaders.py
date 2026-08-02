@@ -1,19 +1,29 @@
 """Small IO helpers the dashboard reads from the artifacts training
-already produced — no retraining or recomputation happens here."""
+already produced — no retraining or recomputation happens here.
 
+Deployment note: the dashboard only ever needs val.csv in full (the
+threshold tuner scores real feature rows against it) — train.csv and
+test.csv are only used here for small aggregate stats and a ~150-row
+sample, both precomputed once by `src/prepare_deploy_artifacts.py` into
+`results/dataset_summary.json` and `results/live_sim_sequence.csv`.
+That's what keeps the deployable artifact set to ~20MB instead of
+needing the full (150MB+) processed data folder. See
+`scripts/package_deploy_bundle.py`."""
+
+import json
 from pathlib import Path
 
 import joblib
 import numpy as np
 import pandas as pd
 
-from src.data import build_explain_sample
-
 MODELS_DIR = Path("models")
 RESULTS_PATH = Path("results/model_comparison.csv")
 SHAP_CACHE_DIR = Path("results/shap_cache")
 EMBEDDING_CACHE_DIR = Path("results/embedding_cache")
 PROCESSED_DIR = Path("data/processed")
+DATASET_SUMMARY_PATH = Path("results/dataset_summary.json")
+LIVE_SIM_SEQUENCE_PATH = Path("results/live_sim_sequence.csv")
 
 
 def load_results() -> pd.DataFrame:
@@ -62,11 +72,15 @@ def default_fraud_row_position(shap_cache: dict, val_df: pd.DataFrame) -> int:
     return int(fraud_positions[0]) if len(fraud_positions) else 0
 
 
-def load_live_sim_sequence(n_legit=60, random_state=7) -> pd.DataFrame:
-    """A small chronological slice of held-out test transactions for the
-    live-simulation demo. Oversamples fraud relative to its real ~0.17%
-    rate — a faithful random walk through test_df would run for a very
-    long time between fraud hits, which makes for a bad demo."""
-    test_df = load_test_df()
-    sample = build_explain_sample(test_df, n_legit=n_legit, random_state=random_state)
-    return sample.sort_values("Time").reset_index(drop=True)
+def load_dataset_summary() -> dict:
+    """Small precomputed counts (train/val/test size + fraud count, and
+    fraud count by hour) — everything dataset_overview_card and
+    timeline_card need, without loading the full train/test CSVs."""
+    with open(DATASET_SUMMARY_PATH) as f:
+        return json.load(f)
+
+
+def load_live_sim_sequence() -> pd.DataFrame:
+    """The precomputed live-simulation replay sequence — see
+    `src/prepare_deploy_artifacts.py` for how it's built."""
+    return pd.read_csv(LIVE_SIM_SEQUENCE_PATH)

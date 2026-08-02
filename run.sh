@@ -44,5 +44,10 @@ if [ ! -d "results/embedding_cache" ] || [ -z "$(ls -A results/embedding_cache 2
   python3 -m src.embeddings
 fi
 
+if [ ! -f "results/dataset_summary.json" ]; then
+  echo "==> Precomputing dataset summary + live-sim sequence..."
+  python3 -m src.prepare_deploy_artifacts
+fi
+
 echo "==> Starting dashboard at http://localhost:8050"
 python3 -m dashboard.app

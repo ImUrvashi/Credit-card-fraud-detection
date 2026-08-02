@@ -40,9 +40,9 @@ def stat_tile(label, value):
     )
 
 
-def dataset_overview_card(train_df, val_df, test_df):
-    total = len(train_df) + len(val_df) + len(test_df)
-    fraud_total = int(train_df["Class"].sum() + val_df["Class"].sum() + test_df["Class"].sum())
+def dataset_overview_card(summary):
+    total = summary["train"]["count"] + summary["val"]["count"] + summary["test"]["count"]
+    fraud_total = summary["train"]["fraud"] + summary["val"]["fraud"] + summary["test"]["fraud"]
     fraud_rate = fraud_total / total * 100
 
     stats = dbc.Row(
@@ -110,8 +110,9 @@ def comparison_card(results_df):
     return card("Compare two runs across metrics", body)
 
 
-def timeline_card(train_df):
-    return card("Fraud volume over time", dcc.Graph(id="timeline-graph", figure=fig.fraud_by_hour_figure(train_df)))
+def timeline_card(fraud_by_hour):
+    graph = dcc.Graph(id="timeline-graph", figure=fig.fraud_by_hour_figure(fraud_by_hour))
+    return card("Fraud volume over time", graph)
 
 
 def embedding_card(pca_cache):
@@ -206,9 +207,8 @@ def live_sim_card():
 
 def build_layout():
     results_df = dl.load_results()
-    train_df = dl.load_train_df()
+    summary = dl.load_dataset_summary()
     val_df = dl.load_val_df()
-    test_df = dl.load_test_df()
     pca_cache = dl.load_embedding_cache("pca")
     default_shap_cache = dl.load_shap_cache("catboost")
 
@@ -217,8 +217,8 @@ def build_layout():
             navbar(),
             dbc.Container(
                 [
-                    dataset_overview_card(train_df, val_df, test_df),
-                    timeline_card(train_df),
+                    dataset_overview_card(summary),
+                    timeline_card(summary["fraud_by_hour"]),
                     leaderboard_card(results_df),
                     comparison_card(results_df),
                     feature_importance_card(results_df, default_shap_cache),

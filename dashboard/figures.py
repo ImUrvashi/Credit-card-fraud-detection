@@ -81,8 +81,12 @@ def comparison_bar_figure(results_df, run_a, run_b):
     return fig
 
 
-def fraud_by_hour_figure(df):
-    counts = df[df["Class"] == 1].groupby("hour_of_day").size().reindex(range(24), fill_value=0)
+def fraud_by_hour_figure(fraud_by_hour: dict):
+    """`fraud_by_hour` is the precomputed {"0": count, ..., "23": count}
+    dict from results/dataset_summary.json — no need to load the full
+    train.csv just to re-derive this small aggregate every startup."""
+    hours = sorted(int(h) for h in fraud_by_hour)
+    counts = pd.Series([fraud_by_hour[str(h)] for h in hours], index=hours)
     fig = px.bar(
         x=counts.index,
         y=counts.values,
