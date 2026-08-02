@@ -1,14 +1,15 @@
 """Small IO helpers the dashboard reads from the artifacts training
 already produced — no retraining or recomputation happens here.
 
-Deployment note: the dashboard only ever needs val.csv in full (the
-threshold tuner scores real feature rows against it) — train.csv and
-test.csv are only used here for small aggregate stats and a ~150-row
-sample, both precomputed once by `src/prepare_deploy_artifacts.py` into
-`results/dataset_summary.json` and `results/live_sim_sequence.csv`.
-That's what keeps the deployable artifact set to ~20MB instead of
-needing the full (150MB+) processed data folder. See
-`scripts/package_deploy_bundle.py`."""
+Deployment note: if `deploy_artifacts/` exists, every path below points
+there instead of the full local `data/`/`models/`/`results/` folders.
+`deploy.sh` builds that directory from a full local run (`./run.sh`) —
+it holds only the single best model (generically named `model.joblib`,
+since which algorithm wins can change between retrains) plus val.csv
+and the small SHAP/embedding/summary caches, not the full 58-model,
+780MB local pipeline output. It's small enough (~20MB) to commit and
+push directly, so a git-based host just needs to pull and start the
+app — no separate upload/download step. See UNDERSTANDING.md §14."""
 
 import json
 from pathlib import Path
@@ -17,13 +18,32 @@ import joblib
 import numpy as np
 import pandas as pd
 
-MODELS_DIR = Path("models")
-RESULTS_PATH = Path("results/model_comparison.csv")
-SHAP_CACHE_DIR = Path("results/shap_cache")
-EMBEDDING_CACHE_DIR = Path("results/embedding_cache")
-PROCESSED_DIR = Path("data/processed")
-DATASET_SUMMARY_PATH = Path("results/dataset_summary.json")
-LIVE_SIM_SEQUENCE_PATH = Path("results/live_sim_sequence.csv")
+DEPLOY_DIR = Path("deploy_artifacts")
+# Prefer the full local pipeline output when it's present, even if
+# deploy_artifacts/ also happens to exist (e.g. right after running
+# ./deploy.sh in a full local checkout) - only fall back to the small
+# deployed subset when the full output genuinely isn't there, which is
+# the real production case (a git clone with just deploy_artifacts/).
+IS_DEPLOYED = DEPLOY_DIR.exists() and not Path("results/model_comparison.csv").exists()
+
+if IS_DEPLOYED:
+    MODELS_DIR = DEPLOY_DIR
+    RESULTS_PATH = DEPLOY_DIR / "model_comparison.csv"
+    SHAP_CACHE_DIR = DEPLOY_DIR / "shap_cache"
+    EMBEDDING_CACHE_DIR = DEPLOY_DIR / "embedding_cache"
+    VAL_PATH = DEPLOY_DIR / "val.csv"
+    DATASET_SUMMARY_PATH = DEPLOY_DIR / "dataset_summary.json"
+    LIVE_SIM_SEQUENCE_PATH = DEPLOY_DIR / "live_sim_sequence.csv"
+else:
+    MODELS_DIR = Path("models")
+    RESULTS_PATH = Path("results/model_comparison.csv")
+    SHAP_CACHE_DIR = Path("results/shap_cache")
+    EMBEDDING_CACHE_DIR = Path("results/embedding_cache")
+    VAL_PATH = Path("data/processed/val.csv")
+    DATASET_SUMMARY_PATH = Path("results/dataset_summary.json")
+    LIVE_SIM_SEQUENCE_PATH = Path("results/live_sim_sequence.csv")
+
+PROCESSED_DIR = Path("data/processed")  # local-only: train.csv/test.csv live here
 
 
 def load_results() -> pd.DataFrame:
@@ -33,6 +53,12 @@ def load_results() -> pd.DataFrame:
 
 
 def load_model(run_name: str):
+    """In deployed mode there's only ever one model on disk (whichever
+    was best when `deploy.sh` last ran), saved as a fixed filename since
+    `run_name` itself can change between retrains — `run_name` is
+    ignored in that case, not looked up."""
+    if IS_DEPLOYED:
+        return joblib.load(MODELS_DIR / "model.joblib")
     return joblib.load(MODELS_DIR / f"{run_name}.joblib")
 
 
@@ -45,14 +71,16 @@ def load_embedding_cache(method: str) -> dict:
 
 
 def load_val_df() -> pd.DataFrame:
-    return pd.read_csv(PROCESSED_DIR / "val.csv")
+    return pd.read_csv(VAL_PATH)
 
 
 def load_train_df() -> pd.DataFrame:
+    """Local-only — never called in deployed mode (see dataset_summary.json)."""
     return pd.read_csv(PROCESSED_DIR / "train.csv")
 
 
 def load_test_df() -> pd.DataFrame:
+    """Local-only — never called in deployed mode (see live_sim_sequence.csv)."""
     return pd.read_csv(PROCESSED_DIR / "test.csv")
 
 

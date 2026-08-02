@@ -1,14 +1,19 @@
+# Full local pipeline output (~780MB) - never push this.
+# deploy_artifacts/ is deliberately NOT listed here - it's the small
+# (~20MB) subset ./deploy.sh copies out of these, and is meant to be
+# committed so a git-based deploy host has what it needs after a pull.
 data/raw/*.csv
 data/processed/*.csv
-*.zip
 models/
 results/
+catboost_info/
+
+*.zip
 .ipynb_checkpoints/
 __pycache__/
 *.pyc
 .venv/
 venv/
-catboost_info/
 docs/
 PLAN.md
 UNDERSTANDING.md
