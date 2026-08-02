@@ -20,8 +20,9 @@ SHAP → embeddings), and opens the dashboard at **http://localhost:8050**.
 Idempotent — re-run anytime; only the first run trains everything (a few
 minutes, 58 combinations).
 
-Needs the dataset first — see `data/raw/README.md` (not redistributed here,
-Kaggle doesn't allow it).
+Needs the dataset first — see `data/raw/README.md`. It's not committed here
+(144MB, over GitHub's 100MB file limit — not a licensing issue, the dataset's
+DbCL v1.0 license is actually permissive).
 
 <details>
 <summary>Manual steps</summary>
@@ -33,11 +34,12 @@ pip install -r requirements.txt
 
 brew install libomp   # macOS only, if missing — needed by XGBoost/LightGBM
 
-python3 -m src.data          # -> data/processed/{train,val,test}.csv
-python3 -m src.train         # -> results/model_comparison.csv, models/*.joblib
-python3 -m src.explain       # -> results/shap_cache/*.joblib
-python3 -m src.embeddings    # -> results/embedding_cache/*.joblib
-python3 -m dashboard.app     # -> http://localhost:8050
+python3 -m src.data                      # -> data/processed/{train,val,test}.csv
+python3 -m src.train                     # -> results/model_comparison.csv, models/*.joblib
+python3 -m src.explain                   # -> results/shap_cache/*.joblib
+python3 -m src.embeddings                # -> results/embedding_cache/*.joblib
+python3 -m src.prepare_deploy_artifacts   # -> results/dataset_summary.json, live_sim_sequence.csv
+python3 -m dashboard.app                 # -> http://localhost:8050
 ```
 
 </details>
