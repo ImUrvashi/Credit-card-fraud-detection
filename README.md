@@ -1,8 +1,9 @@
 # Credit Card Fraud Detection
 
-9 classification algorithms × 7 imbalance-handling strategies (58 compared
-runs), SHAP explainability, PCA/t-SNE/UMAP embeddings, and an interactive Dash
-dashboard.
+9 classification algorithms × 7 imbalance-handling strategies — **58 of the 63
+combinations** (`class_weight` doesn't apply to KNN, Naive Bayes, or the 3
+boosting libraries, so those 5 are skipped) — SHAP explainability, PCA/t-SNE/UMAP
+embeddings, and an interactive Dash dashboard.
 
 **Best result:** CatBoost (baseline) — PR-AUC 0.809, precision 0.947, recall
 0.735. Full comparison: `results/model_comparison.csv` (sortable in the
@@ -15,12 +16,11 @@ dashboard's leaderboard).
 ```
 
 Sets up the venv, installs deps (+ `libomp` via Homebrew on macOS if missing),
-runs whichever pipeline step hasn't produced output yet (data prep → training →
-SHAP → embeddings), and opens the dashboard at **http://localhost:8050**.
-Idempotent — re-run anytime; only the first run trains everything (a few
-minutes, 58 combinations).
+runs whichever pipeline step hasn't produced output yet, and opens the
+dashboard at **http://localhost:8050**. Idempotent — first run trains
+everything (a few minutes); later runs just launch the dashboard.
 
-Needs the dataset first — see `data/raw/README.md`. 
+Needs the dataset first — see `data/raw/README.md`.
 
 <details>
 <summary>Manual steps</summary>
@@ -44,40 +44,24 @@ python3 -m dashboard.app                 # -> http://localhost:8050
 
 ## Deploying (Render, etc.)
 
-The dashboard only reads a handful of small files at runtime — one model, one
-processed split (`val.csv`), and the SHAP/embedding caches — not the full
-`data/`/`models/` folders (~780MB) or the raw Kaggle CSV. After `./run.sh` has
-produced a full local run:
+The dashboard only reads a handful of small files at runtime, not the full
+~780MB `data/`/`models/`. After `./run.sh`:
 
 ```bash
-./deploy.sh
+./deploy.sh   # -> deploy_artifacts/ (~20MB) — commit and push this
 ```
 
-This builds `deploy_artifacts/` (~20MB) — the small subset above, copied out of
-the full local output. It's meant to be **committed and pushed**: once
-`dashboard/data_loaders.py` sees `deploy_artifacts/` exists (and the full local
-`results/` doesn't — see below), it reads every path from there instead. A
-git-based host like Render just needs to pull and run `python -m dashboard.app`,
-no separate upload/download step.
+`deploy_artifacts/` is deliberately **not** gitignored, unlike
+`data/`/`models/`/`results/` — a git-based host just needs to pull and start
+the app, no upload/download step. Local runs always prefer the full data when
+present; a bare checkout (only `deploy_artifacts/`, no `results/`) uses the
+small subset instead.
 
-`deploy_artifacts/` is deliberately *not* gitignored, unlike `data/`/`models/`/`results/`.
-Locally, having both present is fine — the app prefers the full local data
-whenever it's there, and only falls back to `deploy_artifacts/` when it's the
-only thing present (i.e. an actual deploy). Re-run `./deploy.sh` after
-retraining to refresh it before pushing.
+**`deploy.sh` is a local-only prep step — never set it as a build/start
+command.** Render (or similar) should be:
 
-**`deploy.sh` is a local prep step — never set it as Render's build or start
-command.** It expects the full local `results/` to exist, which a Render
-checkout never has (only whatever you've committed, i.e. `deploy_artifacts/`).
-Render's service settings should be:
-
-- **Build Command:** `pip install -r requirements.txt`
-- **Start Command:** `gunicorn dashboard.app:server` (or `python -m dashboard.app`,
-  which now also binds `$PORT`/`0.0.0.0` correctly — but gunicorn is the more
-  production-appropriate WSGI server)
-
-Make sure `deploy_artifacts/` is actually committed and pushed before deploying
-— `git status` should show it tracked, not just present locally.
+- **Build:** `pip install -r requirements.txt`
+- **Start:** `gunicorn dashboard.app:server`
 
 ## Project structure
 
