@@ -9,6 +9,8 @@ embeddings, and an interactive Dash dashboard.
 0.735. Full comparison: `results/model_comparison.csv` (sortable in the
 dashboard's leaderboard).
 
+Live: https://credit-card-fraud-detection-6as5.onrender.com/
+
 ## Quick start
 
 ```bash
